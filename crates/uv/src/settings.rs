@@ -11,7 +11,7 @@ use crate::commands::{PythonUpgrade, PythonUpgradeSource};
 use uv_auth::Service;
 use uv_cache::{CacheArgs, Refresh};
 use uv_cli::comma::CommaSeparatedRequirements;
-use uv_cli::options::{TryFromArgs, resolve_and_combine_indexes};
+use uv_cli::options::{Resolve, resolve_and_combine_indexes};
 use uv_cli::{
     AddArgs, AuditArgs, AuthLoginArgs, AuthLogoutArgs, AuthTokenArgs, ColorChoice, ExternalCommand,
     GlobalArgs, InitArgs, ListFormat, LockArgs, Maybe, PipCheckArgs, PipCompileArgs, PipFreezeArgs,
@@ -39,7 +39,7 @@ use uv_configuration::{
 };
 use uv_distribution_types::{
     ConfigSettings, DependencyMetadata, ExtraBuildVariables, Index, IndexLocations, IndexUrl,
-    PackageConfigSettings, Requirement, ResolveIndexArgError,
+    PackageConfigSettings, Requirement,
 };
 use uv_install_wheel::LinkMode;
 use uv_normalize::{ExtraName, PackageName, PipGroupName};
@@ -572,7 +572,7 @@ impl RunSettings {
         args: RunArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let RunArgs {
             extra,
             all_extras,
@@ -638,7 +638,7 @@ impl RunSettings {
         let show_resolution = show_resolution || environment.show_resolution.value == Some(true);
         let no_env_file = no_env_file || environment.no_env_file.value == Some(true);
 
-        Ok(Self {
+        Self {
             lock_check: resolve_lock_check(locked),
             frozen: resolve_frozen(frozen),
             extras: ExtrasSpecification::from_args(
@@ -689,7 +689,7 @@ impl RunSettings {
             python_platform,
             refresh: Refresh::from(refresh),
             settings: ResolverInstallerSettings::combine(
-                resolver_installer_options(installer, build, filesystem.as_ref())?,
+                resolver_installer_options(installer, build, filesystem.as_ref()),
                 filesystem,
             ),
             env_file: EnvFile::from_args(env_file, no_env_file),
@@ -697,7 +697,7 @@ impl RunSettings {
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
             max_recursion_depth: max_recursion_depth.unwrap_or(Self::DEFAULT_MAX_RECURSION_DEPTH),
-        })
+        }
     }
 }
 
@@ -732,7 +732,7 @@ impl ToolRunSettings {
         filesystem: Option<FilesystemOptions>,
         invocation_source: ToolRunCommand,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let ToolRunArgs {
             command,
             from,
@@ -782,7 +782,7 @@ impl ToolRunSettings {
             }
         }
 
-        let options = resolver_installer_options(installer, build, filesystem.as_ref())?;
+        let options = resolver_installer_options(installer, build, filesystem.as_ref());
 
         let filesystem_options = filesystem.map(FilesystemOptions::into_options);
 
@@ -808,7 +808,7 @@ impl ToolRunSettings {
         let show_resolution = show_resolution || environment.show_resolution.value == Some(true);
         let no_env_file = no_env_file || environment.no_env_file.value == Some(true);
 
-        Ok(Self {
+        Self {
             command,
             from,
             with: with
@@ -848,7 +848,7 @@ impl ToolRunSettings {
                 .combine(filesystem_install_mirrors),
             env_file,
             no_env_file,
-        })
+        }
     }
 }
 
@@ -882,7 +882,7 @@ impl ToolInstallSettings {
         args: ToolInstallArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let ToolInstallArgs {
             package,
             editable,
@@ -905,7 +905,7 @@ impl ToolInstallSettings {
             torch_backend,
         } = args;
 
-        let options = resolver_installer_options(installer, build, filesystem.as_ref())?;
+        let options = resolver_installer_options(installer, build, filesystem.as_ref());
 
         let filesystem_options = filesystem.map(FilesystemOptions::into_options);
 
@@ -926,7 +926,7 @@ impl ToolInstallSettings {
         }
         let lfs = GitLfsSetting::new(lfs.then_some(true), environment.lfs);
 
-        Ok(Self {
+        Self {
             package,
             from,
             with: with
@@ -972,7 +972,7 @@ impl ToolInstallSettings {
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -992,7 +992,7 @@ impl ToolUpgradeSettings {
         args: ToolUpgradeArgs,
         filesystem: Option<FilesystemOptions>,
         environment: &EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let ToolUpgradeArgs {
             name,
             python,
@@ -1061,7 +1061,7 @@ impl ToolUpgradeSettings {
             no_sources_package,
         };
 
-        let args = resolver_installer_options(installer, build, filesystem.as_ref())?;
+        let args = resolver_installer_options(installer, build, filesystem.as_ref());
         let filesystem = filesystem.map(FilesystemOptions::into_options);
         let filesystem_install_mirrors = filesystem
             .clone()
@@ -1073,7 +1073,7 @@ impl ToolUpgradeSettings {
                 .unwrap_or_default(),
         );
 
-        Ok(Self {
+        Self {
             names: if all { vec![] } else { name },
             python: python.and_then(Maybe::into_option),
             python_platform,
@@ -1083,7 +1083,7 @@ impl ToolUpgradeSettings {
                 .install_mirrors
                 .clone()
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -1592,7 +1592,7 @@ impl SyncSettings {
         args: SyncArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let SyncArgs {
             extra,
             all_extras,
@@ -1641,7 +1641,7 @@ impl SyncSettings {
             .unwrap_or_default();
 
         let settings = ResolverInstallerSettings::combine(
-            resolver_installer_options(installer, build, filesystem.as_ref())?,
+            resolver_installer_options(installer, build, filesystem.as_ref()),
             filesystem,
         );
 
@@ -1663,7 +1663,7 @@ impl SyncSettings {
         let no_dev = no_dev || environment.no_dev.value == Some(true);
         let no_editable = no_editable || environment.no_editable.value == Some(true);
 
-        Ok(Self {
+        Self {
             output_format,
             lock_check: resolve_lock_check(locked),
             frozen: resolve_frozen(frozen),
@@ -1714,7 +1714,7 @@ impl SyncSettings {
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -1737,7 +1737,7 @@ impl LockSettings {
         args: LockArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let LockArgs {
             check,
             locked,
@@ -1768,7 +1768,7 @@ impl LockSettings {
             resolve_lock_check(locked)
         };
 
-        Ok(Self {
+        Self {
             lock_check,
             frozen: resolve_frozen(frozen),
             dry_run: DryRun::from_args(dry_run),
@@ -1776,13 +1776,13 @@ impl LockSettings {
             python: python.and_then(Maybe::into_option),
             refresh: Refresh::from(refresh),
             settings: ResolverSettings::combine(
-                resolver_options(resolver, build, filesystem.as_ref())?,
+                resolver_options(resolver, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -1831,7 +1831,7 @@ impl AddSettings {
         args: AddArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let AddArgs {
             packages,
             requirements,
@@ -1891,7 +1891,7 @@ impl AddSettings {
             installer.index_args.default_index.clone(),
             installer.index_args.index.clone(),
             filesystem.as_ref(),
-        )?
+        )
         .into_iter()
         .flatten()
         .collect();
@@ -1956,7 +1956,7 @@ impl AddSettings {
         // Check for conflicts between no_sync and frozen.
         check_conflicts(no_sync, frozen);
 
-        Ok(Self {
+        Self {
             lock_check: resolve_lock_check(locked),
             frozen: resolve_frozen(frozen),
             active: flag(active, no_active, "active"),
@@ -1992,13 +1992,13 @@ impl AddSettings {
             refresh: Refresh::from(refresh),
             indexes,
             settings: ResolverInstallerSettings::combine(
-                resolver_installer_options(installer, build, filesystem.as_ref())?,
+                resolver_installer_options(installer, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -2026,7 +2026,7 @@ impl RemoveSettings {
         args: RemoveArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let RemoveArgs {
             dev,
             optional,
@@ -2079,7 +2079,7 @@ impl RemoveSettings {
         // Check for conflicts between no_sync and frozen.
         check_conflicts(no_sync, frozen);
 
-        Ok(Self {
+        Self {
             lock_check: resolve_lock_check(locked),
             frozen: resolve_frozen(frozen),
             active: flag(active, no_active, "active"),
@@ -2091,13 +2091,13 @@ impl RemoveSettings {
             python: python.and_then(Maybe::into_option),
             refresh: Refresh::from(refresh),
             settings: ResolverInstallerSettings::combine(
-                resolver_installer_options(installer, build, filesystem.as_ref())?,
+                resolver_installer_options(installer, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -2126,7 +2126,7 @@ impl VersionSettings {
         args: VersionArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let VersionArgs {
             value,
             bump,
@@ -2161,7 +2161,7 @@ impl VersionSettings {
         // Check for conflicts between no_sync and frozen.
         check_conflicts(no_sync, frozen);
 
-        Ok(Self {
+        Self {
             value,
             bump,
             short,
@@ -2175,13 +2175,13 @@ impl VersionSettings {
             python: python.and_then(Maybe::into_option),
             refresh: Refresh::from(refresh),
             settings: ResolverInstallerSettings::combine(
-                resolver_installer_options(installer, build, filesystem.as_ref())?,
+                resolver_installer_options(installer, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -2214,7 +2214,7 @@ impl TreeSettings {
         args: TreeArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let TreeArgs {
             tree,
             universal,
@@ -2251,7 +2251,7 @@ impl TreeSettings {
         let dev = dev || environment.dev.value == Some(true);
         let no_dev = no_dev || environment.no_dev.value == Some(true);
 
-        Ok(Self {
+        Self {
             groups: DependencyGroups::from_args(
                 dev,
                 no_dev,
@@ -2277,13 +2277,13 @@ impl TreeSettings {
             python_platform,
             python: python.and_then(Maybe::into_option),
             resolver: ResolverSettings::combine(
-                resolver_options(resolver, build, filesystem.as_ref())?,
+                resolver_options(resolver, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -2318,7 +2318,7 @@ impl ExportSettings {
         args: ExportArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let ExportArgs {
             format,
             all_packages,
@@ -2377,7 +2377,7 @@ impl ExportSettings {
         let no_dev = no_dev || environment.no_dev.value == Some(true);
         let no_editable = no_editable || environment.no_editable.value == Some(true);
 
-        Ok(Self {
+        Self {
             format,
             all_packages,
             package,
@@ -2422,13 +2422,13 @@ impl ExportSettings {
             python: python.and_then(Maybe::into_option),
             refresh: Refresh::from(refresh),
             settings: ResolverSettings::combine(
-                resolver_options(resolver, build, filesystem.as_ref())?,
+                resolver_options(resolver, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -2488,7 +2488,7 @@ impl AuditSettings {
         args: AuditArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let AuditArgs {
             extra,
             all_extras,
@@ -2526,7 +2526,7 @@ impl AuditSettings {
         // Check for conflicts between locked and frozen.
         check_conflicts(locked, frozen);
 
-        Ok(Self {
+        Self {
             extras: ExtrasSpecification::from_args(
                 extra.unwrap_or_default(),
                 no_extra,
@@ -2554,10 +2554,10 @@ impl AuditSettings {
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
             settings: ResolverSettings::combine(
-                resolver_options(resolver, build, filesystem.as_ref())?,
+                resolver_options(resolver, build, filesystem.as_ref()),
                 filesystem,
             ),
-        })
+        }
     }
 }
 
@@ -2585,7 +2585,7 @@ impl PipCompileSettings {
         args: PipCompileArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let PipCompileArgs {
             src_file,
             constraints,
@@ -2697,7 +2697,7 @@ impl PipCompileSettings {
             SupportedEnvironments::default()
         };
 
-        Ok(Self {
+        Self {
             format,
             src_file,
             constraints: constraints
@@ -2763,12 +2763,12 @@ impl PipCompileSettings {
                     ),
                     annotation_style,
                     torch_backend,
-                    ..PipOptions::try_from_args(resolver, filesystem.as_ref())?
+                    ..PipOptions::resolve(resolver, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
@@ -2789,7 +2789,7 @@ impl PipSyncSettings {
         args: Box<PipSyncArgs>,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let PipSyncArgs {
             src_file,
             constraints,
@@ -2826,7 +2826,7 @@ impl PipSyncSettings {
             compat_args: _,
         } = *args;
 
-        Ok(Self {
+        Self {
             src_file,
             constraints: constraints
                 .into_iter()
@@ -2866,12 +2866,12 @@ impl PipSyncSettings {
                     all_extras: flag(all_extras, no_all_extras, "all-extras"),
                     group: Some(group),
                     torch_backend,
-                    ..PipOptions::try_from_args(installer, filesystem.as_ref())?
+                    ..PipOptions::resolve(installer, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
@@ -2901,7 +2901,7 @@ impl PipInstallSettings {
         args: PipInstallArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let PipInstallArgs {
             package,
             requirements,
@@ -2995,7 +2995,7 @@ impl PipInstallSettings {
             Vec::new()
         };
 
-        Ok(Self {
+        Self {
             package,
             requirements,
             editables: editable,
@@ -3050,12 +3050,12 @@ impl PipInstallSettings {
                     require_hashes: flag(require_hashes, no_require_hashes, "require-hashes"),
                     verify_hashes: flag(verify_hashes, no_verify_hashes, "verify-hashes"),
                     torch_backend,
-                    ..PipOptions::try_from_args(installer, filesystem.as_ref())?
+                    ..PipOptions::resolve(installer, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
@@ -3181,7 +3181,7 @@ impl PipListSettings {
         args: PipListArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let PipListArgs {
             editable,
             exclude_editable,
@@ -3200,7 +3200,7 @@ impl PipListSettings {
             compat_args: _,
         } = args;
 
-        Ok(Self {
+        Self {
             editable: flag(editable, exclude_editable, "exclude-editable"),
             exclude: exclude.into_iter().collect(),
             format,
@@ -3212,12 +3212,12 @@ impl PipListSettings {
                     strict: flag(strict, no_strict, "strict"),
                     target,
                     prefix,
-                    ..PipOptions::try_from_args(fetch, filesystem.as_ref())?
+                    ..PipOptions::resolve(fetch, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
@@ -3287,7 +3287,7 @@ impl PipTreeSettings {
         args: PipTreeArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let PipTreeArgs {
             show_version_specifiers,
             tree,
@@ -3300,7 +3300,7 @@ impl PipTreeSettings {
             compat_args: _,
         } = args;
 
-        Ok(Self {
+        Self {
             show_version_specifiers,
             depth: tree.depth,
             prune: tree.prune,
@@ -3313,12 +3313,12 @@ impl PipTreeSettings {
                     python: python.and_then(Maybe::into_option),
                     system: flag(system, no_system, "system"),
                     strict: flag(strict, no_strict, "strict"),
-                    ..PipOptions::try_from_args(fetch, filesystem.as_ref())?
+                    ..PipOptions::resolve(fetch, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
@@ -3388,7 +3388,7 @@ impl BuildSettings {
         args: BuildArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let BuildArgs {
             src,
             out_dir,
@@ -3431,7 +3431,7 @@ impl BuildSettings {
             Vec::new()
         };
 
-        Ok(Self {
+        Self {
             src,
             package,
             all_packages,
@@ -3456,13 +3456,13 @@ impl BuildSettings {
             python: python.and_then(Maybe::into_option),
             refresh: Refresh::from(refresh),
             settings: ResolverSettings::combine(
-                resolver_options(resolver, build, filesystem.as_ref())?,
+                resolver_options(resolver, build, filesystem.as_ref()),
                 filesystem,
             ),
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-        })
+        }
     }
 }
 
@@ -3489,7 +3489,7 @@ impl VenvSettings {
         args: VenvArgs,
         filesystem: Option<FilesystemOptions>,
         environment: EnvironmentOptions,
-    ) -> Result<Self, ResolveIndexArgError> {
+    ) -> Self {
         let VenvArgs {
             python,
             system,
@@ -3519,7 +3519,7 @@ impl VenvSettings {
         let clear = clear || environment.venv_clear.value == Some(true);
         let relocatable = relocatable || environment.venv_relocatable.value == Some(true);
 
-        Ok(Self {
+        Self {
             seed,
             allow_existing,
             clear,
@@ -3541,12 +3541,12 @@ impl VenvSettings {
                     exclude_newer_package: exclude_newer_package
                         .map(ExcludeNewerPackage::from_iter),
                     link_mode,
-                    ..PipOptions::try_from_args(index_args, filesystem.as_ref())?
+                    ..PipOptions::resolve(index_args, filesystem.as_ref())
                 },
                 filesystem,
                 environment,
             ),
-        })
+        }
     }
 }
 
