@@ -39,6 +39,7 @@ pub enum PreviewFeature {
     RelocatableEnvsDefault = 1 << 24,
     PublishRequireNormalized = 1 << 25,
     Audit = 1 << 26,
+    CentralizedEnv = 1 << 27,
 }
 
 impl PreviewFeature {
@@ -72,6 +73,7 @@ impl PreviewFeature {
             Self::RelocatableEnvsDefault => "relocatable-envs-default",
             Self::PublishRequireNormalized => "publish-require-normalized",
             Self::Audit => "audit",
+            Self::CentralizedEnv => "centralized-env",
         }
     }
 }
@@ -118,6 +120,7 @@ impl FromStr for PreviewFeature {
             "relocatable-envs-default" => Self::RelocatableEnvsDefault,
             "publish-require-normalized" => Self::PublishRequireNormalized,
             "audit" => Self::Audit,
+            "centralized-env" => Self::CentralizedEnv,
             _ => return Err(PreviewFeatureParseError),
         })
     }
@@ -363,5 +366,6 @@ mod tests {
             PreviewFeature::PublishRequireNormalized.as_str(),
             "publish-require-normalized"
         );
+        assert_eq!(PreviewFeature::CentralizedEnv.as_str(), "centralized-env");
     }
 }
